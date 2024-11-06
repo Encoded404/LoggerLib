@@ -5,8 +5,10 @@
 
  <details>
  <summary>how it works</summary>
-  1. when your code calls readline, it starts a loop, for each itteration it asks the console to wait for the user to input a key. <br/>
-  2. when the user presses a key, the code checks if it's the key <code>return</code> if it is, it should return the current input. <br/>
+  <ol>
+   <li>when your code calls readline, it starts a loop, for each itteration it asks the console to wait for the user to input a key.</li>
+   <li>when the user presses a key, the code checks if it's the key <code>return</code> if it is, it should return the current input.</li>
+  </ol>
   
   <br/>
   <ul>
