@@ -6,6 +6,7 @@ namespace ConsoleLogger
 {
     public class Logger
     {
+        public static int printImportance = 5;
 
 //unity specefic code
 #if UNITY
@@ -27,7 +28,6 @@ namespace ConsoleLogger
 #else
 
         static List<char> inputChars= new List<char>();
-        static Stream inputStream = Console.OpenStandardInput();
 
         static List<string> commands = new List<string>();
         static int redoCommandIndex = 0;
@@ -35,36 +35,39 @@ namespace ConsoleLogger
         {
             WriteToConsole(value, true);
         }
-        public static void WriteLine(object? value, bool isDebug)
+        public static void WriteLine(object? value, bool isDebug, int importance = 3)
         {
 #if DEBUG
-            WriteLine(value);
+            if(isDebug && importance <= printImportance) { WriteLine(value); }
 #endif
         }
         public static void Write(object? value)
         {
             WriteToConsole(value, false);
         }
-#if DEBUG
-        public static void Write(object? value, bool isDebug)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="value">the value to write</param>
+        /// <param name="isDebug">wheather it should be considered a debug print</param>
+        /// <param name="importance">will only print if lower or equal to Logger.printImportance</param>
+        public static void Write(object? value, bool isDebug, int importance = 3)
         {
-            if(isDebug) { Write(value); }
-        }
+#if DEBUG
+            if(isDebug && importance <= printImportance) { Write(value); }
 #endif
+        }
         static bool isWriting = false;
         static void WriteToConsole(object? value, bool useNewLine)
         {
-            //Console.Write("test 666");
             while(isWriting) {}
             isWriting = true;
 
-            int originalX = Console.GetCursorPosition().Left;
-            int originalY = Console.GetCursorPosition().Top;
+            int originalX = Console.CursorLeft;
+            int originalY = Console.CursorTop;
 
             ClearCurrentConsoleLine();
 
-            Console.WriteLine("");
-            Console.SetCursorPosition(0, originalY - 1);
             Console.Write(value);
             if(useNewLine) { Console.Write('\n'); }
 
@@ -91,7 +94,7 @@ namespace ConsoleLogger
         public static void ClearCurrentConsoleLine()
         {
             int currentLineCursor = Console.CursorTop;
-            Console.SetCursorPosition(0, Console.CursorTop);
+            Console.SetCursorPosition(0, currentLineCursor);
             Console.Write(new string(' ', Console.WindowWidth)); 
             Console.SetCursorPosition(0, currentLineCursor);
         }
@@ -193,7 +196,7 @@ namespace ConsoleLogger
             inputChars = new List<char>(); //empty input list
             WriteLine(returnValue); //write command to console as history
             ClearCurrentConsoleLine(); // clear line to be ready for next write or read
-            //WriteLine("returning: "+returnValue);
+            
             commands.Reverse();
             commands.Add(returnValue);
             commands.Reverse();
