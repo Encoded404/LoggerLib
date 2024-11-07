@@ -60,6 +60,16 @@ namespace ConsoleLogger
         static bool isWriting = false;
         static void WriteToConsole(object? value, bool useNewLine)
         {
+            /*if(useNewLine)
+            {
+                Console.WriteLine(value);
+            }
+            else
+            {
+                Console.Write(value);
+            }
+            return;*/
+
             while(isWriting) {}
             isWriting = true;
 
@@ -114,6 +124,8 @@ namespace ConsoleLogger
         }
         public static string ReadLine()
         {
+            //return Console.ReadLine();
+            
             string returnValue = "";
             while (true)
             {
