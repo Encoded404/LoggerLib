@@ -33,16 +33,28 @@ namespace ConsoleLogger
         static int redoCommandIndex = 0;
         public static void WriteLine(object? value)
         {
-            Write(value, true);
+            WriteToConsole(value, true);
+        }
+        public static void WriteLine(object? value, bool isDebug)
+        {
+#if DEBUG
+            WriteLine(value);
+#endif
         }
         public static void Write(object? value)
         {
-            Write(value, false);
+            WriteToConsole(value, false);
         }
-        static bool isWriting = false;
-        static void Write(object? value, bool useNewLine)
+#if DEBUG
+        public static void Write(object? value, bool isDebug)
         {
-            Console.Write("test 666");
+            if(isDebug) { Write(value); }
+        }
+#endif
+        static bool isWriting = false;
+        static void WriteToConsole(object? value, bool useNewLine)
+        {
+            //Console.Write("test 666");
             while(isWriting) {}
             isWriting = true;
 

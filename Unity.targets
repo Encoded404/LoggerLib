@@ -1,6 +1,5 @@
 <!-- Unity.targets -->
 <Project>
-
     <PropertyGroup>
         <DefineConstants>$(DefineConstants);UNITY;</DefineConstants>
     </PropertyGroup>
@@ -9,5 +8,8 @@
             <HintPath>..\LoggerLibg\deps\UnityEngine.dll</HintPath>
         </Reference>
     </ItemGroup>
-
+    
+    <Target Name="Unity" BeforeTargets="Build">
+        <Message Text="build for unity" Importance="high"/>
+    </Target>
 </Project>
