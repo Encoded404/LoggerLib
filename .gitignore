@@ -1,3 +1,4 @@
 deps/*.dll
 obj/
 bin/
+.fake
