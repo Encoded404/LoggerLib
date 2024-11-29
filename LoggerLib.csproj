@@ -7,6 +7,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="dotnet-curses" Version="1.0.3" />
+  </ItemGroup>
+
   <!-- Conditionally import Unity.targets if UnityBuild is enabled -->
   <Import Project="Unity.targets" Condition="'$(UnityBuild)' == 'true'" />
 

@@ -1,11 +1,14 @@
 #if UNITY
     using UnityEngine;
+#else
+    using Mindmagma.Curses;
 #endif
 
 namespace ConsoleLogger
 {
-    public class Logger
+    public static class Logger
     {
+        // public static Logger mainInstance = new Logger();
         public static int printImportance = 5;
 
 //unity specefic code
@@ -15,22 +18,43 @@ namespace ConsoleLogger
         {
             Debug.Log(value);
         }
-        public static void ClearCurrentConsoleLine()
+        public void ClearCurrentConsoleLine()
         {
             throw new NotSupportedException("ClearCurrentConsoleLine is not supported when using unity");
         }
-        public static string ReadLine()
+        public string ReadLine()
         {
             throw new NotSupportedException("ReadLine is not supported when using unity");
         }
 
 //non unity specefic code
 #else
+        private static readonly object writingOutputLock = new();
+        private static readonly object writinginputLock = new();
+        private static readonly object accesConsoleInfo = new();
 
-        static List<char> inputChars= new List<char>();
+        private static IntPtr Screen = 0;
+        private static IntPtr outputScreen = 0;
+        private static IntPtr inputScreen = 0;
 
-        static List<string> commands = new List<string>();
-        static int redoCommandIndex = 0;
+        static int maxRows = 0, maxCols = 0; 
+        static Logger()
+        {
+            Console.WriteLine("starting ncurses");
+
+            Screen = NCurses.InitScreen();
+            NCurses.GetMaxYX(Screen, out maxRows, out maxCols);
+
+            outputScreen = NCurses.SubWindow(Screen, maxRows - 1, maxCols, 0, 0);
+            NCurses.ScrollOk(outputScreen, true);
+            inputScreen = NCurses.SubWindow(Screen, 1, maxCols, maxRows - 1, 0);
+            NCurses.ScrollOk(inputScreen, true);
+
+            NCurses.
+
+            AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(EmergencyCleanup);
+        }
+        
         public static void WriteLine(object? value)
         {
             WriteToConsole(value, true);
@@ -57,8 +81,232 @@ namespace ConsoleLogger
             if(isDebug && importance <= printImportance) { Write(value); }
 #endif
         }
-        private static readonly object accesConsoleInfo = new();
-        public static (int Left, int Top) safeAccesCursorPosition()
+        static void WriteToConsole(object? value, bool useNewLine)
+        {
+            if(useNewLine)
+            {
+                SafeOuputWriteLine(value);
+            }
+            else
+            {
+                SafeOutputWrite(value);
+            }
+            return;
+
+            /*int originalX = safeAccesCursorPosition().Left;
+            int originalY = safeAccesCursorPosition().Top;
+
+            ClearCurrentConsoleLine();
+            SafeWrite(value);
+            if(useNewLine) { SafeWrite('\n'); }
+
+            redrawInput();
+
+            safeWriteCursorPosition(originalX, Math.Clamp(originalY + 1, 0, safeAccessBufferSize().Width)); */
+        }
+        static void WriteRaw(string value)
+        {
+            for (int i = 0; i < value.Length; i++)
+            {
+                if(value[i] == '\n')
+                {
+                    Logger.Write(@"\\n");
+                }
+                else
+                {
+                    Logger.Write(value[i]);
+                }
+            }
+        }
+        private static void SafeOutputWrite(object? value)
+        {
+            lock (writingOutputLock) lock (accesConsoleInfo)
+            {
+                if(value == null) { return; }
+                NCurses.TouchWindow(outputScreen);
+                NCurses.WindowAddString(outputScreen, value.ToString());
+            }
+        }
+        private static void SafeOuputWriteLine(object? value)
+        {
+            lock (writingOutputLock) lock (accesConsoleInfo)
+            {
+                SafeOutputWrite(value+"\n"); // console.writeline is !posssibly! not completly thread safe, but write is
+            }
+        }
+        private static void SafeInputWrite(object? value)
+        {
+            lock (writinginputLock) lock (accesConsoleInfo)
+            {
+                if(value == null) { return; }
+                NCurses.TouchWindow(inputScreen);
+                NCurses.WindowAddString(inputScreen, value.ToString());
+            }
+        }
+        private static void SafeInputWriteLine(object? value)
+        {
+            SafeInputWrite(value+"\n"); // console.writeline is !posssibly! not completly thread safe, but write is
+        }
+        static void redrawInput()
+        {
+            //int cursor = Console.CursorLeft;
+            if(inputChars.Count > 0 || redoCommandIndex > 0)
+            {
+                // SafeWriteLine("writin inpu'");
+                NCurses.ClearWindow(inputScreen);
+                SafeInputWrite(
+                    redoCommandIndex > 0 ?
+                        commands[redoCommandIndex - 1] :
+                        new string(inputChars.ToArray())
+                );
+            }
+        } 
+        private static readonly object readingLock = new();
+        static List<string> commands = new List<string>();
+        static int redoCommandIndex = 0; 
+        static List<char> inputChars= new List<char>();
+        public static string ReadLine()
+        {
+            
+            lock (readingLock)
+            {
+
+                //return Console.ReadLine();
+                
+                string returnValue = "";
+                while (true)
+                {
+                    int input = NCurses.GetChar();
+                    (int left, int top) position = (0,0);
+                    NCurses.GetYX(Screen, out position.top, out position.left);
+                    Console.WriteLine("keycode: "+input);
+                    if (inputScreen == 0) { Console.WriteLine("fuck"); }
+                    switch (input)
+                    {
+                        case CursesKey.ENTER:
+                            Console.WriteLine("enter pressed");
+                            break;
+                        case CursesKey.BACKSPACE:
+                            //if(cursorIndex <= 0) {  continue; }
+
+                            if(redoCommandIndex > 0) {inputChars = commands[redoCommandIndex - 1].ToCharArray().ToList(); redoCommandIndex = 0; }
+
+                            redrawInput();
+                            
+                            continue;
+                        case CursesKey.LEFT:
+                            if(position.left > 0) { NCurses.WindowMove(inputScreen, position.left - 1, position.top); }
+                            redrawInput();
+                            continue;
+                        case CursesKey.RIGHT:
+                            if(position.left < inputChars.Count) { NCurses.WindowMove(inputScreen, position.left + 1, position.top); }
+                            redrawInput();
+                            continue;
+                        case CursesKey.UP:
+                            redoCommandIndex = Math.Clamp(redoCommandIndex++, 0, commands.Count);
+                            redrawInput();
+                            continue;
+                        case CursesKey.DOWN:
+                            redoCommandIndex = Math.Clamp(redoCommandIndex--, 0, commands.Count);
+                            redrawInput();
+                            continue;
+                            
+                        default:
+
+                            if(redoCommandIndex > 0) {inputChars = commands[redoCommandIndex - 1].ToCharArray().ToList(); redoCommandIndex = 0; }
+
+                            char inputChar = (char)input;
+
+                            if(position.left >= inputChars.Count)
+                            {
+                                inputChars.Add(inputChar);
+                                //SafeWrite(inputChar);
+                                redrawInput();
+                            }
+                            else
+                            {
+                                //SafeWriteLine("test");
+                                inputChars.Insert( Math.Clamp(position.left, 0, inputChars.Count), inputChar);
+                                // SafeWrite(inputChar);
+                                redrawInput();
+                                // cursorIndex = safeAccesCursorPosition().Left;
+                                // for(int i = cursorIndex; i < inputChars.Count; i++)
+                                // {
+                                //     SafeWrite(inputChars[i]);
+                                // }
+                                NCurses.WindowMove(outputScreen, position.left, position.top);
+                            }
+                            continue;
+                    }
+                    if (input == CursesKey.ENTER) {break;}
+                    
+                }
+                if(redoCommandIndex > 0)
+                {
+                    returnValue = new string(commands[redoCommandIndex - 1]);
+                    redoCommandIndex = 0;
+                }
+                else
+                {
+                    returnValue = new string(inputChars.ToArray()); // set return value
+                }
+                inputChars = new List<char>() {'h', 'i'}; //empty input list
+                WriteLine(returnValue); //write command to console as history
+                //ClearCurrentConsoleLine(); // clear line to be ready for next write or read
+                
+                commands.Reverse();
+                commands.Add(returnValue);
+                commands.Reverse();
+                return returnValue;
+            }
+        }
+
+        static void ShutdownConsole()
+        {
+            cleanup();
+        }
+        static void EmergencyCleanup(object sender, System.UnhandledExceptionEventArgs e)
+        {
+            try
+            {
+                cleanup();
+            }
+            catch
+            {
+                WriteLine("full loggerlib cleanup failed, doing partial cleanup");
+                try
+                {
+                    NCurses.EndWin();
+                }
+                catch
+                {
+                    WriteLine("partial loggerlib cleanup failed");
+                }
+            }
+        }
+        static void cleanup()
+        {
+            NCurses.EndWin();
+        }
+
+        /* public static void ClearCurrentConsoleLine()
+        {
+            int currentLineCursor = safeAccesCursorPosition().Top;
+            safeWriteCursorPosition(0, currentLineCursor);
+            SafeWrite(new string(' ', safeAccesWindowSize().Width)); 
+            safeWriteCursorPosition(0, currentLineCursor);
+        }*/
+        /* public static void ResetColor()
+        {
+            WriteLine("reseting console color");
+            lock (writingLock) lock (accesConsoleInfo)
+            {
+                WriteLine("trying to reset console color", true, 4);
+                Console.ResetColor();
+                WriteLine("reseting console color sucess", true);
+            }
+        }  */
+        /* public static (int Left, int Top) safeAccesCursorPosition()
         {
             lock (writingLock) lock (accesConsoleInfo)
             {
@@ -85,191 +333,7 @@ namespace ConsoleLogger
             {
                 return (Console.BufferHeight, Console.BufferWidth);
             }
-        }
-        private static readonly object writingLock = new();
-        static void WriteToConsole(object? value, bool useNewLine)
-        {
-            /*if(useNewLine)
-            {
-                SafeWriteLine(value);
-            }
-            else
-            {
-                SafeWrite(value);
-            }
-            return;*/
-
-            int originalX = safeAccesCursorPosition().Left;
-            int originalY = safeAccesCursorPosition().Top;
-
-            ClearCurrentConsoleLine();
-            SafeWrite(value);
-            if(useNewLine) { SafeWrite('\n'); }
-
-            redrawInput();
-
-            safeWriteCursorPosition(originalX, Math.Clamp(originalY + 1, 0, safeAccessBufferSize().Width));
-        }
-        static void WriteRaw(string value)
-        {
-            for (int i = 0; i < value.Length; i++)
-            {
-                if(value[i] == '\n')
-                {
-                    Logger.Write(@"\\n");
-                }
-                else
-                {
-                    Logger.Write(value[i]);
-                }
-            }
-        }
-        private static void SafeWrite(object? value)
-        {
-            lock (writingLock) lock (accesConsoleInfo)
-            {
-                Console.Write(value);
-            }
-        }
-        private static void SafeWriteLine(object? value)
-        {
-            lock (writingLock) lock (accesConsoleInfo)
-            {
-                SafeWrite(value+"\n"); // console.writeline is !posssibly! not completly thread safe, but write is
-            }
-        }
-        public static void ClearCurrentConsoleLine()
-        {
-            int currentLineCursor = safeAccesCursorPosition().Top;
-            safeWriteCursorPosition(0, currentLineCursor);
-            SafeWrite(new string(' ', safeAccesWindowSize().Width)); 
-            safeWriteCursorPosition(0, currentLineCursor);
-        }
-        static void redrawInput()
-        {
-            redoCommandIndex = Math.Clamp(redoCommandIndex, 0, commands.Count);
-            //int cursor = Console.CursorLeft;
-            ClearCurrentConsoleLine();
-            if(inputChars.Count > 0 || redoCommandIndex > 0)
-            {
-                // SafeWriteLine("writin inpu'");
-                SafeWrite(
-                    redoCommandIndex > 0 ?
-                        commands[redoCommandIndex - 1] :
-                        new string(inputChars.ToArray())
-                );
-            }
-        }
-        private static readonly object readingLock = new();
-        public static string ReadLine()
-        {
-            lock (readingLock)
-            {
-
-                //return Console.ReadLine();
-                
-                string returnValue = "";
-                while (true)
-                {
-                    ConsoleKeyInfo input = Console.ReadKey(true);
-                    int cursorIndex = safeAccesCursorPosition().Left;
-                    switch (input.Key)
-                    {
-                        case ConsoleKey.Enter:
-                            break;
-                        case ConsoleKey.Backspace:
-                            if(cursorIndex <= 0) {  continue; }
-
-                            if(redoCommandIndex > 0) {inputChars = commands[redoCommandIndex - 1].ToCharArray().ToList(); redoCommandIndex = 0; }
-
-                            //WriteLine("delete pressed");
-                            if(inputChars.Count > 0) { inputChars.RemoveAt(Math.Clamp(cursorIndex - 1, 0, inputChars.Count-1)); }
-                            
-                            // ClearCurrentConsoleLine();
-                            // //SafeWrite("content is: ");
-                            // foreach(char ch in inputChars)
-                            // {
-                            //     SafeWrite(ch);
-                            // }
-                            redrawInput();
-
-                            safeWriteCursorPosition(Math.Clamp(cursorIndex - 1, 0, safeAccessBufferSize().Width), safeAccesCursorPosition().Top);
-
-                            continue;
-
-                        case ConsoleKey.LeftArrow:
-                            if(safeAccesCursorPosition().Left > 0) { safeWriteCursorPosition(safeAccesCursorPosition().Left - 1, safeAccesCursorPosition().Top); }
-                            continue;
-                        case ConsoleKey.RightArrow:
-                            if(safeAccesCursorPosition().Left < inputChars.Count) { safeWriteCursorPosition(safeAccesCursorPosition().Left + 1, safeAccesCursorPosition().Top); }
-                            continue;
-                        case ConsoleKey.UpArrow:
-                            redoCommandIndex++;
-                            redrawInput();
-                            continue;
-                        case ConsoleKey.DownArrow:
-                            redoCommandIndex--;
-                            redrawInput();
-                            continue;
-                            
-                        default:
-
-                            if(redoCommandIndex > 0) {inputChars = commands[redoCommandIndex - 1].ToCharArray().ToList(); redoCommandIndex = 0; }
-
-                            char inputChar = input.KeyChar;
-                            if(safeAccesCursorPosition().Left >= inputChars.Count)
-                            {
-                                inputChars.Add(inputChar);
-                                //SafeWrite(inputChar);
-                                redrawInput();
-                            }
-                            else
-                            {
-                                //SafeWriteLine("test");
-                                inputChars.Insert( Math.Clamp(safeAccesCursorPosition().Left, 0, inputChars.Count), inputChar);
-                                // SafeWrite(inputChar);
-                                redrawInput();
-                                // cursorIndex = safeAccesCursorPosition().Left;
-                                // for(int i = cursorIndex; i < inputChars.Count; i++)
-                                // {
-                                //     SafeWrite(inputChars[i]);
-                                // }
-                                safeWriteCursorPosition(cursorIndex, safeAccesCursorPosition().Top);
-                            }
-                            continue;
-                    }
-                    if (input.Key == ConsoleKey.Enter) {break;}
-                    
-                }
-                if(redoCommandIndex > 0)
-                {
-                    returnValue = new string(commands[redoCommandIndex - 1]);
-                    redoCommandIndex = 0;
-                }
-                else
-                {
-                    returnValue = new string(inputChars.ToArray()); // set return value
-                }
-                inputChars = new List<char>(); //empty input list
-                WriteLine(returnValue); //write command to console as history
-                ClearCurrentConsoleLine(); // clear line to be ready for next write or read
-                
-                commands.Reverse();
-                commands.Add(returnValue);
-                commands.Reverse();
-                return returnValue;
-            }
-        }
-        public static void ResetColor()
-        {
-            WriteLine("reseting console color");
-            lock (writingLock) lock (accesConsoleInfo)
-            {
-                WriteLine("trying to reset console color", true, 4);
-                Console.ResetColor();
-                WriteLine("reseting console color sucess", true);
-            }
-        }
+        } */
 #endif
     }
 }
