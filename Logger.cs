@@ -1,8 +1,23 @@
 #if UNITY
     using UnityEngine;
 #else
-    using Mindmagma.Curses;
+using ConsoleLogger;
+using Mindmagma.Curses;
 #endif
+
+namespace test
+{
+    public class Tester
+    {
+        public static void Main()
+        {
+            Logger.WriteLine("starting");
+            string str = Logger.ReadLine();
+            Logger.WriteLine(str);
+            Logger.WriteLine("goodbye");
+        }
+    }
+}
 
 namespace ConsoleLogger
 {
@@ -42,15 +57,15 @@ namespace ConsoleLogger
         {
             Console.WriteLine("starting ncurses");
 
+            Console.WriteLine(Console.OutputEncoding);
+
             Screen = NCurses.InitScreen();
             NCurses.GetMaxYX(Screen, out maxRows, out maxCols);
 
             outputScreen = NCurses.SubWindow(Screen, maxRows - 1, maxCols, 0, 0);
             NCurses.ScrollOk(outputScreen, true);
-            inputScreen = NCurses.SubWindow(Screen, 1, maxCols, maxRows - 1, 0);
+            inputScreen = NCurses.SubWindow(Screen, 1, maxCols, maxCols - 1, 0);
             NCurses.ScrollOk(inputScreen, true);
-
-            NCurses.
 
             AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(EmergencyCleanup);
         }
