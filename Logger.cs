@@ -37,22 +37,38 @@ namespace ConsoleLogger
 
         static List<string> commands = new List<string>();
         static int redoCommandIndex = 0;
+        /// <summary>
+        /// writes a value to the console
+        /// </summary>
+        /// <param name="value">the value to write</param>
         public static void WriteLine(object? value)
         {
             WriteToConsole(value, true);
         }
+        /// <summary>
+        /// writes a value to the console
+        /// </summary>
+        /// <param name="value">the value to write</param>
+        /// <param name="isDebug">wheather it should be considered a debug print</param>
+        /// <param name="importance">will only print if lower or equal to Logger.printImportance</param>
         public static void WriteLine(object? value, bool isDebug, int importance = 3)
         {
 #if DEBUG
             if(isDebug && importance <= printImportance) { WriteLine(value); }
+#else
+            if(importance <= printImportance) { writeline(value); }
 #endif
         }
+        /// <summary>
+        /// writes a value to the console
+        /// </summary>
+        /// <param name="value">the value to write</param>
         public static void Write(object? value)
         {
             WriteToConsole(value, false);
         }
         /// <summary>
-        /// 
+        /// writes a value to the console
         /// </summary>
         /// <param name="value">the value to write</param>
         /// <param name="isDebug">wheather it should be considered a debug print</param>
@@ -60,7 +76,9 @@ namespace ConsoleLogger
         public static void Write(object? value, bool isDebug, int importance = 3)
         {
 #if DEBUG
-            if(isDebug && importance <= printImportance) { Write(value); }
+            if(isDebug && importance <= printImportance) { WriteLine(value); }
+#else
+            if(importance <= printImportance) { writeline(value); }
 #endif
         }
         private static readonly object accesConsoleInfo = new();
