@@ -8,7 +8,7 @@ namespace ConsoleLogger
 {
     public class Logger
     {
-        public static int printImportance = 5;
+        public static int printImportance = 3;
 
 //unity specefic code
 #if UNITY
@@ -197,9 +197,6 @@ namespace ConsoleLogger
         {
             lock (readingLock)
             {
-
-                //return Console.ReadLine();
-                
                 string returnValue = "";
                 while (true)
                 {
