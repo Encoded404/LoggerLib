@@ -55,9 +55,8 @@ namespace ConsoleLogger
         {
 #if DEBUG
             if(isDebug && importance <= printImportance) { WriteLine(value); }
-#else
-            if(importance <= printImportance) { writeline(value); }
 #endif
+            if(!isDebug && importance <= printImportance) { WriteLine(value); }
         }
         /// <summary>
         /// writes a value to the console
@@ -77,9 +76,8 @@ namespace ConsoleLogger
         {
 #if DEBUG
             if(isDebug && importance <= printImportance) { WriteLine(value); }
-#else
-            if(importance <= printImportance) { writeline(value); }
 #endif
+            if(!isDebug && importance <= printImportance) { WriteLine(value); }
         }
         private static readonly object accesConsoleInfo = new();
         public static (int Left, int Top) safeAccesCursorPosition()
