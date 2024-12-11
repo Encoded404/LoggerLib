@@ -178,9 +178,6 @@ namespace ConsoleLogger
         }
         static void redrawInput()
         {
-            redoCommandIndex = Math.Clamp(redoCommandIndex, 0, commands.Count);
-            //int cursor = Console.CursorLeft;
-
             ClearCurrentConsoleLine();
 
             //SafeWriteLine("redrawing");
@@ -260,12 +257,16 @@ namespace ConsoleLogger
                             if(cursorIndex < inputChars.Count || (redoCommandIndex > 0 && cursorIndex < commands[redoCommandIndex - 1].Length)) { cursorIndex++; SafeWrite(moveCursorRight); }
                             break;
                         case ConsoleKey.UpArrow:
-                            redoCommandIndex++;
+                            if(commands.Count <= 0) { break; }
+
+                            redoCommandIndex = Math.Clamp(redoCommandIndex + 1, 0, commands.Count);
                             redrawInput();
                             cursorIndex = commands[redoCommandIndex - 1].Length;
                             break;
                         case ConsoleKey.DownArrow:
-                            redoCommandIndex--;
+                            if(commands.Count <= 0) { break; }
+
+                            redoCommandIndex = Math.Clamp(redoCommandIndex - 1, 0, commands.Count);
                             redrawInput();
                             if (redoCommandIndex > 0) { cursorIndex = commands[redoCommandIndex - 1].Length; }
                             break;
