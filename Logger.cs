@@ -183,7 +183,7 @@ namespace ConsoleLogger
 
             ClearCurrentConsoleLine();
 
-            SafeWriteLine("redrawing");
+            //SafeWriteLine("redrawing");
 
             if(inputChars.Count > 0 || redoCommandIndex > 0)
             {
