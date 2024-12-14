@@ -115,6 +115,8 @@ namespace ConsoleLogger
                 return (Console.BufferHeight, Console.BufferWidth);
             }
         }
+        private static bool usedNewlineLast = false;
+        private static int lineNumber = 0;
         private static readonly object writingLock = new();
         static void WriteToConsole(object? value, bool useNewLine)
         {
@@ -128,16 +130,20 @@ namespace ConsoleLogger
             }
             return;*/
 
-            int originalX = safeAccesCursorPosition().Left;
-            int originalY = safeAccesCursorPosition().Top;
+            usedNewlineLast = true;
+            lineNumber = 0;
 
             ClearCurrentConsoleLine();
+
+            if(!usedNewlineLast) { SafeWrite(moveCursorUp+"\r"+$"\x1b[{lineNumber}C"); }
+
             SafeWrite(value);
-            if(useNewLine) { SafeWrite('\n'); }
+            if(!useNewLine) { usedNewlineLast = false; lineNumber = safeAccesCursorPosition().Left; }
+            SafeWrite("\n");
 
             redrawInput();
 
-            safeWriteCursorPosition(originalX, Math.Clamp(originalY + 1, 0, safeAccessBufferSize().Height));
+            //safeWriteCursorPosition(originalX, Math.Clamp(originalY + 1, 0, safeAccessBufferSize().Height));
         }
         static void WriteRaw(string value)
         {
@@ -191,6 +197,8 @@ namespace ConsoleLogger
         }
         const string moveCursorLeft = "\x1b[D";
         const string moveCursorRight = "\x1b[C";
+        const string moveCursorUp = "\x1b[A";
+        const string moveCursorDown = "\x1b[A";
         const string saveCursorPosition = "\x1b[s";
         const string restoreSavedCursorPosition = "\x1b[u";
         private static readonly object readingLock = new();
