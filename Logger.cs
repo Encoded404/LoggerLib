@@ -356,7 +356,6 @@ namespace ConsoleLogger
                         ClearCurrentConsoleLine(); // clear line to be ready for next write or read
                         Console.WriteLine(returnValue); //write command to console as history
                     }
-                
                     commands.Insert(0, returnValue);
                 }
 
@@ -365,17 +364,14 @@ namespace ConsoleLogger
         }
         public static void ResetColor()
         {
-            SafeWriteLine("reseting console color");
             lock (writingLock)
             {
-#if DEBUG
-                SafeWriteLine("trying to reset console color");
-#endif
+                Console.WriteLine("reseting console color");
+                //resetcolor apparently breaks loggerlib ¯\_(ツ)_/¯
                 Console.ResetColor();
-#if DEBUG
-                SafeWriteLine("reseting console color success");
-#endif
+                Console.Out.Flush();
             }
+            return;
         }
 #endif
     }
