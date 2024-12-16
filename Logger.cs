@@ -368,7 +368,7 @@ namespace ConsoleLogger
             {
                 Console.WriteLine("reseting console color");
                 //resetcolor apparently breaks loggerlib ¯\_(ツ)_/¯
-                Console.ResetColor();
+                //Console.ResetColor();
                 Console.Out.Flush();
             }
             return;
