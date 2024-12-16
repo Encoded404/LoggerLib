@@ -133,15 +133,18 @@ namespace ConsoleLogger
             usedNewlineLast = true;
             lineNumber = 0;
 
-            SafeClearCurrentConsoleLine();
-            
-            if(!usedNewlineLast) { SafeWrite(moveCursorUp+"\r"+$"\x1b[{lineNumber}C"); }
+            lock (writingLock)
+            {
+                ClearCurrentConsoleLine();
+                
+                if(!usedNewlineLast) { Console.Write(moveCursorUp+"\r"+$"\x1b[{lineNumber}C"); }
 
-            SafeWrite(value);
-            if(!useNewLine) { usedNewlineLast = false; lineNumber = safeAccesCursorPosition().Left; }
-            SafeWrite("\n");
+                Console.Write(value);
+                if(!useNewLine) { usedNewlineLast = false; lineNumber = Console.GetCursorPosition().Left; }
+                Console.Write("\n");
 
-            SafeRedrawInput();
+                RedrawInput();
+            }
 
             //safeWriteCursorPosition(originalX, Math.Clamp(originalY + 1, 0, safeAccessBufferSize().Height));
         }
@@ -151,11 +154,11 @@ namespace ConsoleLogger
             {
                 if(value[i] == '\n')
                 {
-                    Logger.Write(@"\\n");
+                    Console.Write(@"\\n");
                 }
                 else
                 {
-                    Logger.Write(value[i]);
+                    Console.Write(value[i]);
                 }
             }
         }
@@ -172,19 +175,19 @@ namespace ConsoleLogger
         }
         public static void SafeClearCurrentConsoleLine()
         {
-            int currentLineCursor = safeAccesCursorPosition().Top;
             lock (writingLock)
             {
+                int currentLineCursor = Console.GetCursorPosition().Top;
                 Console.Write("\r");
-                Console.Write(new string(' ', safeAccesWindowSize().Width - 1)); 
+                Console.Write(new string(' ', Console.BufferWidth - 1)); 
                 Console.Write("\r");
             }
         }
         public static void ClearCurrentConsoleLine()
         {
-            int currentLineCursor = safeAccesCursorPosition().Top;
+            int currentLineCursor = Console.GetCursorPosition().Top;
             Console.Write("\r");
-            Console.Write(new string(' ', safeAccesWindowSize().Width - 1)); 
+            Console.Write(new string(' ', Console.WindowWidth - 1)); 
             Console.Write("\r");
         }
         static void SafeRedrawInput()
@@ -236,99 +239,102 @@ namespace ConsoleLogger
                     //WriteLine($"key is: {input.Key} and keychar is: {input.KeyChar} and modifier is: {input.Modifiers.ToString()}");
                     
                     string writeBuffer = "";
-                    switch (input.Key)
+                    lock (writingLock)
                     {
-                        case ConsoleKey.Enter:
-                            break;
-                        case ConsoleKey.Backspace:
-                            if(cursorIndex <= 0) {  continue; }
+                        switch (input.Key)
+                        {
+                            case ConsoleKey.Enter:
+                                break;
+                            case ConsoleKey.Backspace:
+                                if(cursorIndex <= 0) {  continue; }
 
-                            if(redoCommandIndex > 0) {inputChars = commands[redoCommandIndex - 1].ToCharArray().ToList(); redoCommandIndex = 0; }
+                                if(redoCommandIndex > 0) {inputChars = commands[redoCommandIndex - 1].ToCharArray().ToList(); redoCommandIndex = 0; }
 
-                            //WriteLine("backspace pressed");
-                            if(inputChars.Count > 0) { cursorIndex--; inputChars.RemoveAt(Math.Clamp(cursorIndex, 0, inputChars.Count-1)); }
-                            
-                            for(int i = cursorIndex; i < inputChars.Count; i++)
-                            {
-                                writeBuffer += inputChars[i];
-                            }
-                            // moves the cursor left, saves the cursor position, writes the updated text, removes the last char with an empty char, restores the saved cursor position
-                            SafeWrite(moveCursorLeft+saveCursorPosition+writeBuffer+' '+restoreSavedCursorPosition);
+                                //WriteLine("backspace pressed");
+                                if(inputChars.Count > 0) { cursorIndex--; inputChars.RemoveAt(Math.Clamp(cursorIndex, 0, inputChars.Count-1)); }
+                                
+                                for(int i = cursorIndex; i < inputChars.Count; i++)
+                                {
+                                    writeBuffer += inputChars[i];
+                                }
+                                // moves the cursor left, saves the cursor position, writes the updated text, removes the last char with an empty char, restores the saved cursor position
+                                Console.Write(moveCursorLeft+saveCursorPosition+writeBuffer+' '+restoreSavedCursorPosition);
 
-                            /* redrawInput();
-                            safeWriteCursorPosition(Math.Clamp(cursorIndex, 0, safeAccessBufferSize().Width), safeAccesCursorPosition().Top); */
-
-                            break;
-                        case ConsoleKey.Delete:
-                            if(cursorIndex == inputChars.Count) {  continue; }
-
-                            if(redoCommandIndex > 0) {inputChars = commands[redoCommandIndex - 1].ToCharArray().ToList(); redoCommandIndex = 0; }
-
-                            //WriteLine("delete pressed");
-                            if(inputChars.Count > 0) { inputChars.RemoveAt(Math.Clamp(cursorIndex, 0, inputChars.Count-1)); }
-
-                            for(int i = cursorIndex; i < inputChars.Count; i++)
-                            {
-                                writeBuffer += inputChars[i];
-                            }
-                            // safes the cursor position, writes the updated text, removes the last char with an empty char, restores the cursor position
-                            SafeWrite(saveCursorPosition+writeBuffer+' '+restoreSavedCursorPosition);
-
-                            /* redrawInput();
-                            safeWriteCursorPosition(Math.Clamp(cursorIndex, 0, safeAccessBufferSize().Width), safeAccesCursorPosition().Top); */
-
-                            break;
-                        case ConsoleKey.LeftArrow:
-                            if(cursorIndex > 0) { cursorIndex--; SafeWrite(moveCursorLeft); }
-                            break;
-                        case ConsoleKey.RightArrow:
-                            if(cursorIndex < inputChars.Count || (redoCommandIndex > 0 && cursorIndex < commands[redoCommandIndex - 1].Length)) { cursorIndex++; SafeWrite(moveCursorRight); }
-                            break;
-                        case ConsoleKey.UpArrow:
-                            if(commands.Count <= 0) { break; }
-
-                            redoCommandIndex = Math.Clamp(redoCommandIndex + 1, 0, commands.Count);
-                            SafeRedrawInput();
-                            cursorIndex = commands[redoCommandIndex - 1].Length;
-                            break;
-                        case ConsoleKey.DownArrow:
-                            if(commands.Count <= 0) { break; }
-
-                            redoCommandIndex = Math.Clamp(redoCommandIndex - 1, 0, commands.Count);
-                            SafeRedrawInput();
-                            if (redoCommandIndex > 0) { cursorIndex = commands[redoCommandIndex - 1].Length; }
-                            break;
-                        default:
-                            if(redoCommandIndex > 0) {inputChars = commands[redoCommandIndex - 1].ToCharArray().ToList(); redoCommandIndex = 0; }
-
-                            if(input.KeyChar == '\0') { continue; }
-
-                            if(cursorIndex >= inputChars.Count)
-                            {
-                                inputChars.Add(inputChar);
-                                SafeWrite(inputChar);
-                                cursorIndex++;
-                                                                
                                 /* redrawInput();
                                 safeWriteCursorPosition(Math.Clamp(cursorIndex, 0, safeAccessBufferSize().Width), safeAccesCursorPosition().Top); */
-                            }
-                            else
-                            {
-                                inputChars.Insert(Math.Clamp(cursorIndex, 0, inputChars.Count), inputChar);
+
+                                break;
+                            case ConsoleKey.Delete:
+                                if(cursorIndex == inputChars.Count) {  continue; }
+
+                                if(redoCommandIndex > 0) {inputChars = commands[redoCommandIndex - 1].ToCharArray().ToList(); redoCommandIndex = 0; }
+
+                                //WriteLine("delete pressed");
+                                if(inputChars.Count > 0) { inputChars.RemoveAt(Math.Clamp(cursorIndex, 0, inputChars.Count-1)); }
 
                                 for(int i = cursorIndex; i < inputChars.Count; i++)
                                 {
                                     writeBuffer += inputChars[i];
                                 }
-                                SafeWrite(saveCursorPosition+writeBuffer+restoreSavedCursorPosition);
+                                // safes the cursor position, writes the updated text, removes the last char with an empty char, restores the cursor position
+                                Console.Write(saveCursorPosition+writeBuffer+' '+restoreSavedCursorPosition);
 
                                 /* redrawInput();
                                 safeWriteCursorPosition(Math.Clamp(cursorIndex, 0, safeAccessBufferSize().Width), safeAccesCursorPosition().Top); */
-                            }
-                            break;
+
+                                break;
+                            case ConsoleKey.LeftArrow:
+                                if(cursorIndex > 0) { cursorIndex--; Console.Write(moveCursorLeft); }
+                                break;
+                            case ConsoleKey.RightArrow:
+                                if(cursorIndex < inputChars.Count || (redoCommandIndex > 0 && cursorIndex < commands[redoCommandIndex - 1].Length)) { cursorIndex++; Console.Write(moveCursorRight); }
+                                break;
+                            case ConsoleKey.UpArrow:
+                                if(commands.Count <= 0) { break; }
+
+                                redoCommandIndex = Math.Clamp(redoCommandIndex + 1, 0, commands.Count);
+                                RedrawInput();
+                                cursorIndex = commands[redoCommandIndex - 1].Length;
+                                break;
+                            case ConsoleKey.DownArrow:
+                                if(commands.Count <= 0) { break; }
+
+                                redoCommandIndex = Math.Clamp(redoCommandIndex - 1, 0, commands.Count);
+                                RedrawInput();
+                                if (redoCommandIndex > 0) { cursorIndex = commands[redoCommandIndex - 1].Length; }
+                                break;
+                            default:
+                                if(redoCommandIndex > 0) {inputChars = commands[redoCommandIndex - 1].ToCharArray().ToList(); redoCommandIndex = 0; }
+
+                                if(input.KeyChar == '\0') { continue; }
+
+                                if(cursorIndex >= inputChars.Count)
+                                {
+                                    cursorIndex++;
+                                    inputChars.Add(inputChar);
+                                    Console.Write(inputChar);
+                                                                    
+                                    /* redrawInput();
+                                    safeWriteCursorPosition(Math.Clamp(cursorIndex, 0, safeAccessBufferSize().Width), safeAccesCursorPosition().Top); */
+                                }
+                                else
+                                {
+                                    inputChars.Insert(Math.Clamp(cursorIndex, 0, inputChars.Count), inputChar);
+
+                                    for(int i = cursorIndex; i < inputChars.Count; i++)
+                                    {
+                                        writeBuffer += inputChars[i];
+                                    }
+                                    Console.Write(saveCursorPosition+writeBuffer+restoreSavedCursorPosition);
+
+                                    /* redrawInput();
+                                    safeWriteCursorPosition(Math.Clamp(cursorIndex, 0, safeAccessBufferSize().Width), safeAccesCursorPosition().Top); */
+                                }
+                                break;
+                        }
+                        if(Console.GetCursorPosition().Left != cursorIndex) { RedrawInput(); }
+                        if (input.Key == ConsoleKey.Enter) { break; }
                     }
-                    if(safeAccesCursorPosition().Left != cursorIndex) { SafeRedrawInput(); }
-                    if (input.Key == ConsoleKey.Enter) { break; }
                     
                 }
                 string returnValue = "";
@@ -345,8 +351,11 @@ namespace ConsoleLogger
                 
                 if(returnValue != string.Empty)
                 {
-                    SafeClearCurrentConsoleLine(); // clear line to be ready for next write or read
-                    SafeWriteLine(returnValue); //write command to console as history
+                    lock (writingLock)
+                    {
+                        ClearCurrentConsoleLine(); // clear line to be ready for next write or read
+                        Console.WriteLine(returnValue); //write command to console as history
+                    }
                 
                     commands.Insert(0, returnValue);
                 }
@@ -356,12 +365,16 @@ namespace ConsoleLogger
         }
         public static void ResetColor()
         {
-            WriteLine("reseting console color");
+            SafeWriteLine("reseting console color");
             lock (writingLock)
             {
-                WriteLine("trying to reset console color", true, 4);
+#if DEBUG
+                SafeWriteLine("trying to reset console color");
+#endif
                 Console.ResetColor();
-                WriteLine("reseting console color sucess", true);
+#if DEBUG
+                SafeWriteLine("reseting console color success");
+#endif
             }
         }
 #endif
