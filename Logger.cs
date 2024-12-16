@@ -101,7 +101,7 @@ namespace ConsoleLogger
                 Console.CursorVisible = visible;
             }
         }
-        public static (int Height, int Width) safeAccesWindowSize()
+        public static (int Height, int Width) safeAccessWindowSize()
         {
             lock (writingLock)
             {
