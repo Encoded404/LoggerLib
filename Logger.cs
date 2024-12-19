@@ -1,13 +1,21 @@
 #if UNITY
     using UnityEngine;
-#else
-    using ConsoleLogger;
 #endif
+
+using System.Drawing;
 
 namespace ConsoleLogger
 {
     public class Logger
     {
+        static Logger()
+        {
+            defaultForegroundColor = Console.ForegroundColor;
+            defaultBackgroundColor = Console.BackgroundColor;
+        }
+
+        static ConsoleColor defaultForegroundColor;
+        static ConsoleColor defaultBackgroundColor;
         public static int printImportance = 3;
 
 //unity specefic code
@@ -369,6 +377,8 @@ namespace ConsoleLogger
                 Console.WriteLine("reseting console color");
                 //resetcolor apparently breaks loggerlib ¯\_(ツ)_/¯
                 //Console.ResetColor();
+                Console.ForegroundColor = defaultForegroundColor;
+                Console.BackgroundColor = defaultBackgroundColor;
                 Console.Out.Flush();
             }
             return;
