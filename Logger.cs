@@ -65,6 +65,8 @@ namespace ConsoleLogger
             if(isDebug && importance <= printImportance) { WriteLine(value); }
 #endif
             if(!isDebug && importance <= printImportance) { WriteLine(value); }
+
+            return;
         }
         /// <summary>
         /// writes a value to the console
@@ -185,18 +187,12 @@ namespace ConsoleLogger
         {
             lock (writingLock)
             {
-                int currentLineCursor = Console.GetCursorPosition().Top;
-                Console.Write("\r");
-                Console.Write(new string(' ', Console.BufferWidth - 1)); 
-                Console.Write("\r");
+                Console.Write("\r" + new string(' ', Console.BufferWidth - 1) + "\r");
             }
         }
         public static void ClearCurrentConsoleLine()
         {
-            int currentLineCursor = Console.GetCursorPosition().Top;
-            Console.Write("\r");
-            Console.Write(new string(' ', Console.WindowWidth - 1)); 
-            Console.Write("\r");
+            Console.Write("\r" + new string(' ', Console.WindowWidth - 1) + "\r"); 
         }
         static void SafeRedrawInput()
         {
@@ -379,7 +375,9 @@ namespace ConsoleLogger
                 //Console.ResetColor();
                 Console.ForegroundColor = defaultForegroundColor;
                 Console.BackgroundColor = defaultBackgroundColor;
+                Console.WriteLine("idk_test");
                 Console.Out.Flush();
+                Console.WriteLine("idk_test2");
             }
             return;
         }
