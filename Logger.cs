@@ -1,8 +1,5 @@
-#if UNITY
-    using UnityEngine;
-#endif
-
-using System.Drawing;
+using System;
+using System.Collections.Generic;
 
 namespace ConsoleLogger
 {
@@ -17,29 +14,6 @@ namespace ConsoleLogger
         static ConsoleColor defaultForegroundColor;
         static ConsoleColor defaultBackgroundColor;
         public static int printImportance = 3;
-
-//unity specefic code
-#if UNITY
-
-        public static void Write(object? value)
-        {
-            Debug.Log(value);
-        }
-        public static void WriteLine(object? value)
-        {
-            write(value);
-        }
-        public static void ClearCurrentConsoleLine()
-        {
-            throw new NotSupportedException("ClearCurrentConsoleLine is not supported when using unity");
-        }
-        public static string ReadLine()
-        {
-            throw new NotSupportedException("ReadLine is not supported when using unity");
-        }
-
-//non unity specefic code
-#else
 
         static List<char> inputChars= new List<char>();
 
@@ -89,7 +63,7 @@ namespace ConsoleLogger
 #endif
             if(!isDebug && importance <= printImportance) { WriteLine(value); }
         }
-        private static readonly object accesConsoleInfo = new();
+        private static readonly object accesConsoleInfo = new object();
         public static (int Left, int Top) safeAccesCursorPosition()
         {
             lock (writingLock)
@@ -252,7 +226,11 @@ namespace ConsoleLogger
                             case ConsoleKey.Backspace:
                                 if(cursorIndex <= 0) {  continue; }
 
-                                if(redoCommandIndex > 0) {inputChars = commands[redoCommandIndex - 1].ToCharArray().ToList(); redoCommandIndex = 0; }
+                                if (redoCommandIndex > 0)
+                                {
+                                    inputChars = new List<char>(commands[redoCommandIndex - 1]);
+                                    redoCommandIndex = 0;
+                                }
 
                                 //WriteLine("backspace pressed");
                                 if(inputChars.Count > 0) { cursorIndex--; inputChars.RemoveAt(Math.Clamp(cursorIndex, 0, inputChars.Count-1)); }
@@ -271,7 +249,11 @@ namespace ConsoleLogger
                             case ConsoleKey.Delete:
                                 if(cursorIndex == inputChars.Count) {  continue; }
 
-                                if(redoCommandIndex > 0) {inputChars = commands[redoCommandIndex - 1].ToCharArray().ToList(); redoCommandIndex = 0; }
+                                if (redoCommandIndex > 0)
+                                {
+                                    inputChars = new List<char>(commands[redoCommandIndex - 1]);
+                                    redoCommandIndex = 0;
+                                }
 
                                 //WriteLine("delete pressed");
                                 if(inputChars.Count > 0) { inputChars.RemoveAt(Math.Clamp(cursorIndex, 0, inputChars.Count-1)); }
@@ -308,7 +290,11 @@ namespace ConsoleLogger
                                 if (redoCommandIndex > 0) { cursorIndex = commands[redoCommandIndex - 1].Length; }
                                 break;
                             default:
-                                if(redoCommandIndex > 0) {inputChars = commands[redoCommandIndex - 1].ToCharArray().ToList(); redoCommandIndex = 0; }
+                                if (redoCommandIndex > 0)
+                                {
+                                    inputChars = new List<char>(commands[redoCommandIndex - 1]);
+                                    redoCommandIndex = 0;
+                                }
 
                                 if(input.KeyChar == '\0') { continue; }
 
@@ -381,6 +367,5 @@ namespace ConsoleLogger
             }
             return;
         }
-#endif
     }
 }
